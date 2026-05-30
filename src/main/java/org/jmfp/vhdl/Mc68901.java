@@ -173,9 +173,6 @@ public class Mc68901 {
 
         if (!resetn) {
             reset();
-            lastCsn = csn;
-            lastIackn = iackn;
-            lastDsn = dsn;
             computeOutputs();
             return;
         }
