@@ -27,16 +27,16 @@ package org.jmfp.vhdl.idiomatic;
  */
 public final class Mc68901Idiomatic {
 
-    // ---- Chip outputs (same public contract as Mc68901) ----
-    public int     od;
-    public boolean dtackn;
-    public boolean irqn;
-    public boolean ieon;
-    public int     io;
-    public boolean tao;
-    public boolean tbo;
-    public boolean tco;
-    public boolean tdo;
+    // ---- Chip outputs (read by caller after risingEdge via getters) ----
+    private int     od;
+    private boolean dtackn;
+    private boolean irqn;
+    private boolean ieon;
+    private int     io;
+    private boolean tao;
+    private boolean tbo;
+    private boolean tco;
+    private boolean tdo;
 
     // ---- Factored-out components ----
     private final TimerUnit    timerA = new TimerUnit();
@@ -318,6 +318,16 @@ public final class Mc68901Idiomatic {
     // ================================================================
     //  Getters (same contract as Mc68901 for compatibility)
     // ================================================================
+
+    public int     getOd()      { return od; }
+    public boolean isDtackn()   { return dtackn; }
+    public boolean isIrqn()     { return irqn; }
+    public boolean isIeon()     { return ieon; }
+    public int     getIo()      { return io; }
+    public boolean isTao()      { return tao; }
+    public boolean isTbo()      { return tbo; }
+    public boolean isTco()      { return tco; }
+    public boolean isTdo()      { return tdo; }
 
     public int getGpip()  { return regs.gpip; }
     public int getAer()   { return regs.aer; }
