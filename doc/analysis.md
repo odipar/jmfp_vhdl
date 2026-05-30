@@ -15,8 +15,8 @@ pre-generated VHDL simulation trace (Value Change Dump).
 
 | # | Strength | Notes |
 |---|---|---|
-| 1 | **Provably correct baseline** | The VCD golden reference was produced by an IEEE-compliant VHDL simulator; every Java variant is cross-checked against it at thousands of rising-edge granularity. |
-| 2 | **Progressive refinement ladder** | Four variants (`Mc68901` → `Mc68901Idiomatic` → `Mc68901Optimized` → `Mc68901Refactored`) let a reader study the same chip model at escalating levels of abstraction and optimisation without losing correctness. |
+| 1 | **Provably correct baseline** | The VCD golden reference was produced by an IEEE-compliant VHDL simulator; every Java variant is cross-checked against it at millions of rising edges. |
+| 2 | **Progressive refinement ladder** | Four variants (`Mc68901` → `Mc68901Idiomatic` → `Mc68901Optimized` → `Mc68901Refactored`) let a reader study the same chip model at escalating levels of abstraction and optimization without losing correctness. |
 | 3 | **Dual public API** | Both a low-level, cycle-accurate `risingEdge()` method and high-level `writeRegister` / `readRegister` / `clockTimers` convenience methods are available, catering to hardware emulators and software developers alike. |
 | 4 | **Zero-allocation hot path** | `Mc68901Optimized` eliminates all per-edge object creation (no `Snapshot` or `TickResult` records), making it suitable for GC-sensitive contexts such as embedded JVM deployments or high-frequency simulation loops. |
 | 5 | **Clear documentation** | README explains the full design methodology; every public method has Javadoc; each package has a `package-info.java` summary; the VCD conformance runner contains inline comments explaining the subtle delta-lag semantics. |
@@ -132,7 +132,7 @@ In typical JVM environments the optimized variant is expected to be **1.5× – 
 ### Gaps
 
 1. **No code-coverage measurement**: Without JaCoCo (or similar), it is not possible to quantify which branches in `risingEdge` are exercised by the random test or the VCD replay.
-2. **USART registers untested**: No tests verify the behavior of reads or writes to `UCR` (0x29), `RSR` (0x2B), `TSR` (0x2D), or `UDR` (0x2F) because there is no USART state-machine logic to observe.
+2. **USART registers untested**: No tests verify the behavior of reads or writes to `UCR` (0x29), `RSR` (0x2B), `TSR` (0x2D), or `UDR` (0x2F) because there is no USART state-machine logic to observe. (These are the bus-level addresses used throughout the codebase, where A0 is always 1 per the VHDL entity: `addr <= "00" & rs & '1'`.)
 3. **No negative/boundary tests**: There are no tests for invalid register addresses (expected to return `0xFF` on read), or for writing values with unexpected bit patterns.
 4. **No reset-mid-operation tests**: The conformance and random tests apply reset only at the start; resetting mid-run (e.g., while a timer is counting) is not explicitly covered.
 5. **Missing `Mc68901` unit tests**: The base `Mc68901` class has no dedicated unit test file; it is only exercised as the reference model in cross-model tests and via the VCD conformance test.
