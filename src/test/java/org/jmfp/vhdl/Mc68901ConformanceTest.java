@@ -36,26 +36,45 @@ class Mc68901ConformanceTest {
                 new AtomicReference<>(null);
 
         Mc68901 mfp = new Mc68901();
+
+        // Store driven values to forward on risingEdge call
+        boolean[] clkren  = {true};
+        boolean[] xtlcken = {false};
+        boolean[] resetn  = {false};
+        int[]     id      = {0};
+        int[]     rs      = {0};
+        boolean[] csn     = {true};
+        boolean[] rwn     = {true};
+        boolean[] dsn     = {true};
+        boolean[] iackn   = {true};
+        int[]     ii      = {0};
+        boolean[] tai     = {false};
+        boolean[] tbi     = {false};
+
         VcdConformanceRunner.ModelDriver driver = new VcdConformanceRunner.ModelDriver() {
             @Override
-            public void drive(boolean clkren, boolean xtlcken, boolean resetn,
-                              int id, int rs, boolean csn, boolean rwn, boolean dsn,
-                              boolean iackn, int ii, int iiPrev, boolean tai, boolean tbi) {
-                mfp.clkren  = clkren;
-                mfp.xtlcken = xtlcken;
-                mfp.resetn  = resetn;
-                mfp.id      = id;
-                mfp.rs      = rs;
-                mfp.csn     = csn;
-                mfp.rwn     = rwn;
-                mfp.dsn     = dsn;
-                mfp.iackn   = iackn;
-                mfp.ii      = ii;
-                mfp.iiPrev  = iiPrev;
-                mfp.tai     = tai;
-                mfp.tbi     = tbi;
+            public void drive(boolean pClkren, boolean pXtlcken, boolean pResetn,
+                              int pId, int pRs, boolean pCsn, boolean pRwn, boolean pDsn,
+                              boolean pIackn, int pIi, boolean pTai, boolean pTbi) {
+                clkren[0]  = pClkren;
+                xtlcken[0] = pXtlcken;
+                resetn[0]  = pResetn;
+                id[0]      = pId;
+                rs[0]      = pRs;
+                csn[0]     = pCsn;
+                rwn[0]     = pRwn;
+                dsn[0]     = pDsn;
+                iackn[0]   = pIackn;
+                ii[0]      = pIi;
+                tai[0]     = pTai;
+                tbi[0]     = pTbi;
             }
-            @Override public void    risingEdge() { mfp.risingEdge(); }
+            @Override
+            public void risingEdge() {
+                mfp.risingEdge(clkren[0], xtlcken[0], resetn[0],
+                               id[0], rs[0], csn[0], rwn[0], dsn[0],
+                               iackn[0], ii[0], tai[0], tbi[0]);
+            }
             @Override public int     getOd()      { return mfp.od; }
             @Override public boolean isDtackn()   { return mfp.dtackn; }
             @Override public boolean isIrqn()     { return mfp.irqn; }

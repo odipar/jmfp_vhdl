@@ -4,26 +4,12 @@ package org.jmfp.vhdl;
  * 1:1 Java implementation of the MC68901 Multi-Function Peripheral chip
  * as specified in {@code vhdl/mc68901.vhd}.
  *
- * <p>All chip inputs are set as public fields before calling {@link #risingEdge()}.
- * All output signals are readable as public fields after the call.
- * Internal state is private and can be queried via getter methods.
+ * <p>The {@link #risingEdge} method accepts all chip inputs as parameters,
+ * matching the VHDL entity port list exactly. Output signals are readable
+ * as public fields after the call. Internal state is private and can be
+ * queried via getter methods.
  */
 public class Mc68901 {
-
-    // ---- Chip inputs (set by caller before risingEdge) ----
-    public boolean clkren;
-    public boolean xtlcken;
-    public boolean resetn;
-    public int     id;       // 8-bit
-    public int     rs;       // 5-bit (rs[5:1])
-    public boolean csn;
-    public boolean rwn;
-    public boolean dsn;
-    public boolean iackn;
-    public int     ii;       // 8-bit GPIP input (current value)
-    public int     iiPrev;   // 8-bit GPIP input (previous cycle value for delta-lag)
-    public boolean tai;
-    public boolean tbi;
 
     // ---- Chip outputs (read by caller after risingEdge) ----
     public int     od;       // 8-bit
@@ -93,6 +79,11 @@ public class Mc68901 {
     private int sod;
     private int ii1;         // 8-bit (previous ii0)
 
+    // Stored input values needed for combinational output computation
+    private boolean lastCsn = true;
+    private boolean lastIackn = true;
+    private boolean lastDsn = true;
+
     public Mc68901() {
         reset();
     }
@@ -157,18 +148,39 @@ public class Mc68901 {
 
     /**
      * Advance the model by one rising clock edge.
-     * All inputs must be set before calling this method.
-     * All outputs are updated after this method returns.
+     * Parameters match the VHDL entity input ports.
+     *
+     * @param clkren  rising-edge enable for register/bus logic
+     * @param xtlcken crystal clock enable for timer logic
+     * @param resetn  active-low reset
+     * @param id      8-bit input data bus
+     * @param rs      5-bit register select (rs[5:1])
+     * @param csn     active-low chip select
+     * @param rwn     read/write (1=read, 0=write)
+     * @param dsn     active-low data strobe
+     * @param iackn   active-low interrupt acknowledge
+     * @param ii      8-bit general purpose I/O input
+     * @param tai     timer A input
+     * @param tbi     timer B input
      */
-    public void risingEdge() {
+    public void risingEdge(boolean clkren, boolean xtlcken, boolean resetn,
+                           int id, int rs, boolean csn, boolean rwn, boolean dsn,
+                           boolean iackn, int ii, boolean tai, boolean tbi) {
+        // Store inputs needed for output computation
+        lastCsn = csn;
+        lastIackn = iackn;
+        lastDsn = dsn;
+
         if (!resetn) {
             reset();
+            lastCsn = csn;
+            lastIackn = iackn;
+            lastDsn = dsn;
             computeOutputs();
             return;
         }
 
         // === Save pre-edge state for VHDL signal semantics ===
-        // In VHDL, all signal reads within a process see pre-edge values.
         boolean p_xtldiv = xtldiv;
         boolean p_csn1 = csn1;
         int p_siackn = siackn;
@@ -205,8 +217,8 @@ public class Mc68901 {
         int p_ii1 = ii1;
         boolean p_dtackn_irq = dtackn_irq;
 
-        // Pre-edge combinational signals
-        int p_ii0 = (iiPrev ^ aer) & 0xFF;
+        // Pre-edge combinational signals (ii0 uses the passed ii value directly)
+        int p_ii0 = (ii ^ aer) & 0xFF;
         int p_trd = (p_ii1 & ~p_ii0 & ~ddr) & 0xFF;
         int p_intv = ((p_ipra & p_imra) << 8 | (p_iprb & p_imrb)) & 0xFFFF;
         int p_ipl = priority(p_intv);
@@ -494,7 +506,7 @@ public class Mc68901 {
                 } else {
                     iprb = p_iprb & ~(1 << (p_ipl & 0x7));
                 }
-                if (bit(p_vr, 0)) { // vr(3) in VHDL = bit 0 of our 5-bit vr
+                if (bit(p_vr, 0)) {
                     if (bit(p_ipl, 3)) {
                         isra = p_isra | (1 << (p_ipl & 0x7));
                     } else {
@@ -522,8 +534,8 @@ public class Mc68901 {
         boolean sirqn = !((intv != 0 && !bit(vr, 0)) || ipl > isr_ipl || !dtackn_irq);
         irqn = sirqn;
 
-        dtackn = ((dtackn_irq ? 1 : 0) & ((dtackn_reg || csn) ? 1 : 0)) != 0 || dsn;
-        od = (!csn || !iackn) ? sod & 0xFF : 0xFF;
+        dtackn = ((dtackn_irq ? 1 : 0) & ((dtackn_reg || lastCsn) ? 1 : 0)) != 0 || lastDsn;
+        od = (!lastCsn || !lastIackn) ? sod & 0xFF : 0xFF;
     }
 
     // --- Utility methods ---
@@ -532,7 +544,6 @@ public class Mc68901 {
         return ((value >> bitIndex) & 1) != 0;
     }
 
-    /** Returns the index of the highest set bit (15 downto 0). Returns 0 if no bits set. */
     private static int priority(int v) {
         for (int i = 15; i >= 0; i--) {
             if (((v >> i) & 1) != 0) {
@@ -542,7 +553,6 @@ public class Mc68901 {
         return 0;
     }
 
-    /** Prescale value lookup matching VHDL function. */
     private static int prescale(int v) {
         switch (v & 0x7) {
             case 0: return 0;
