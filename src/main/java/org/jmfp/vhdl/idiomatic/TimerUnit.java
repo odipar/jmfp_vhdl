@@ -53,7 +53,7 @@ public final class TimerUnit {
             case 5 -> 32;
             case 6 -> 50;
             case 7 -> 100;
-            default -> 0;
+            default -> 0; // unreachable: input masked to 0-7
         };
     }
 
