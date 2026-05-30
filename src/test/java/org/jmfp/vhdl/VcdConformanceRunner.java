@@ -59,10 +59,10 @@ public class VcdConformanceRunner {
      * signals through the accessor methods.
      */
     public interface ModelDriver {
-        /** Drive all 13 input signals into the model for the current rising edge. */
+        /** Drive all 12 input signals into the model for the current rising edge. */
         void drive(boolean clkren, boolean xtlcken, boolean resetn,
                    int id, int rs, boolean csn, boolean rwn, boolean dsn,
-                   boolean iackn, int ii, int iiPrev, boolean tai, boolean tbi);
+                   boolean iackn, int ii, boolean tai, boolean tbi);
         /** Advance the model by one clock cycle. */
         void risingEdge();
         /** 8-bit data-bus output (od[7:0]). */
@@ -154,7 +154,7 @@ public class VcdConformanceRunner {
         // concurrent signal ii0 <= ii xor aer lags ii by one delta, so the
         // clocked process reads the *old* ii0 on the edge where ii also changes.
         // Fix: snapshot ii at the end of every callback and pass the lagged
-        // value (iiPrev) into risingEdge() — analogous to prevXtlcken.
+        // value as ii into the model — the model handles delta-lag internally.
         int[] prevIi = {0};               // matches VHDL initial value x"00"
 
         VcdParser parser = new VcdParser();
@@ -168,8 +168,8 @@ public class VcdConformanceRunner {
                 edgeCount[0]++;
                 long edge = edgeCount[0];
 
-                // 1. Drive inputs.  Use the lagged snapshot for xtlcken and
-                //    iiPrev; use current VCD values for all other inputs.
+                // 1. Drive inputs.  Use the lagged snapshot for xtlcken and ii;
+                //    use current VCD values for all other inputs.
                 driver.drive(
                         p.getValue(SYM_CLKREN) != 0,
                         prevXtlcken[0],
@@ -180,7 +180,6 @@ public class VcdConformanceRunner {
                         p.getValue(SYM_RWN)    != 0,
                         p.getValue(SYM_DSN)    != 0,
                         p.getValue(SYM_IACKN)  != 0,
-                        (int) p.getValue(SYM_II),
                         prevIi[0],
                         p.getValue(SYM_TAI)    != 0,
                         p.getValue(SYM_TBI)    != 0);
