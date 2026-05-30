@@ -46,9 +46,8 @@ public final class Mc68901Refactored {
     private boolean lastIackn = true;
     private boolean lastDsn   = true;
 
-    // GPIP interrupt routing: bit -> {register selector (1=ipra,0=iprb), ier bit index, ipr bit index}
+    // GPIP interrupt routing: {ii bit, isA (1=ipra/iera, 0=iprb/ierb), ier bit, ipr bit}
     private static final int[][] GPIP_MAP = {
-        // ii bit, isA (1=ipra), ierBit, iprBit
         {7, 1, 7, 7},  // ii[7] -> ipra[7], enabled by iera[7]
         {6, 1, 6, 6},  // ii[6] -> ipra[6], enabled by iera[6]
         {5, 0, 7, 7},  // ii[5] -> iprb[7], enabled by ierb[7]
@@ -135,20 +134,24 @@ public final class Mc68901Refactored {
     //  High-level convenience API
     // ================================================================
 
+    /** Writes a value to a register by address. */
     public void writeRegister(int addr, int data) {
         regs.takeSnapshot();
         regs.write(addr & 0xFF, data & 0xFF);
     }
 
+    /** Reads a register by address; {@code ii} supplies the GPIP input pins. */
     public int readRegister(int addr, int ii) {
         regs.takeSnapshot();
         return regs.read(addr & 0xFF, ii);
     }
 
+    /** Reads a register by address with GPIP pins defaulting to zero. */
     public int readRegister(int addr) {
         return readRegister(addr, 0);
     }
 
+    /** Advances all four timers by one tick with the given external inputs. */
     public void clockTimers(boolean tai, boolean tbi) {
         regs.takeSnapshot();
         advanceTimers(tai, tbi);
@@ -158,6 +161,7 @@ public final class Mc68901Refactored {
         tdo = timerD.getOutput();
     }
 
+    /** Returns {@code true} if any enabled interrupt is pending. */
     public boolean isInterruptPending() {
         int intv = ((regs.ipra & regs.imra) << 8 | (regs.iprb & regs.imrb)) & 0xFFFF;
         return intv != 0;
