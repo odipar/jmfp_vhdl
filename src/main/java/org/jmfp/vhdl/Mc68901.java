@@ -6,21 +6,21 @@ package org.jmfp.vhdl;
  *
  * <p>The {@link #risingEdge} method accepts all chip inputs as parameters,
  * matching the VHDL entity port list exactly. Output signals are readable
- * as public fields after the call. Internal state is private and can be
+ * via getter methods after the call. Internal state is private and can be
  * queried via getter methods.
  */
 public class Mc68901 {
 
-    // ---- Chip outputs (read by caller after risingEdge) ----
-    public int     od;       // 8-bit
-    public boolean dtackn;
-    public boolean irqn;
-    public boolean ieon;
-    public int     io;       // 8-bit
-    public boolean tao;
-    public boolean tbo;
-    public boolean tco;
-    public boolean tdo;
+    // ---- Chip outputs (read by caller after risingEdge via getters) ----
+    private int     od;       // 8-bit
+    private boolean dtackn;
+    private boolean irqn;
+    private boolean ieon;
+    private int     io;       // 8-bit
+    private boolean tao;
+    private boolean tbo;
+    private boolean tco;
+    private boolean tdo;
 
     // ---- Internal state (private) ----
     private int gpip;
@@ -563,6 +563,17 @@ public class Mc68901 {
             default: return 0;
         }
     }
+
+    // --- Getters for chip outputs ---
+    public int     getOd()      { return od; }
+    public boolean isDtackn()   { return dtackn; }
+    public boolean isIrqn()     { return irqn; }
+    public boolean isIeon()     { return ieon; }
+    public int     getIo()      { return io; }
+    public boolean isTao()      { return tao; }
+    public boolean isTbo()      { return tbo; }
+    public boolean isTco()      { return tco; }
+    public boolean isTdo()      { return tdo; }
 
     // --- Getters for internal state ---
     public int getGpip() { return gpip; }

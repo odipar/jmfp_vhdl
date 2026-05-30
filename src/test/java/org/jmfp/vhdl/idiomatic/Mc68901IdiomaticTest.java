@@ -143,14 +143,14 @@ class Mc68901IdiomaticTest {
     }
 
     private static void assertOutputsMatch(Mc68901 orig, Mc68901Idiomatic idi, int edge) {
-        assertEquals(orig.od,     idi.od,     () -> "od mismatch at edge " + edge);
-        assertEquals(orig.dtackn, idi.dtackn, () -> "dtackn mismatch at edge " + edge);
-        assertEquals(orig.irqn,   idi.irqn,   () -> "irqn mismatch at edge " + edge);
-        assertEquals(orig.ieon,   idi.ieon,   () -> "ieon mismatch at edge " + edge);
-        assertEquals(orig.io,     idi.io,     () -> "io mismatch at edge " + edge);
-        assertEquals(orig.tao,    idi.tao,    () -> "tao mismatch at edge " + edge);
-        assertEquals(orig.tbo,    idi.tbo,    () -> "tbo mismatch at edge " + edge);
-        assertEquals(orig.tco,    idi.tco,    () -> "tco mismatch at edge " + edge);
-        assertEquals(orig.tdo,    idi.tdo,    () -> "tdo mismatch at edge " + edge);
+        assertEquals(orig.getOd(),     idi.getOd(),     () -> "od mismatch at edge " + edge);
+        assertEquals(orig.isDtackn(),  idi.isDtackn(),  () -> "dtackn mismatch at edge " + edge);
+        assertEquals(orig.isIrqn(),    idi.isIrqn(),    () -> "irqn mismatch at edge " + edge);
+        assertEquals(orig.isIeon(),    idi.isIeon(),    () -> "ieon mismatch at edge " + edge);
+        assertEquals(orig.getIo(),     idi.getIo(),     () -> "io mismatch at edge " + edge);
+        assertEquals(orig.isTao(),     idi.isTao(),     () -> "tao mismatch at edge " + edge);
+        assertEquals(orig.isTbo(),     idi.isTbo(),     () -> "tbo mismatch at edge " + edge);
+        assertEquals(orig.isTco(),     idi.isTco(),     () -> "tco mismatch at edge " + edge);
+        assertEquals(orig.isTdo(),     idi.isTdo(),     () -> "tdo mismatch at edge " + edge);
     }
 }

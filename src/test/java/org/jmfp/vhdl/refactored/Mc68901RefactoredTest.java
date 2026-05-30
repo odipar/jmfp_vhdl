@@ -138,14 +138,14 @@ class Mc68901RefactoredTest {
     // ================================================================
 
     private static void assertOutputsMatch(Mc68901 orig, Mc68901Refactored ref, int edge) {
-        assertEquals(orig.od,     ref.od,     () -> "od mismatch at edge " + edge);
-        assertEquals(orig.dtackn, ref.dtackn, () -> "dtackn mismatch at edge " + edge);
-        assertEquals(orig.irqn,   ref.irqn,   () -> "irqn mismatch at edge " + edge);
-        assertEquals(orig.ieon,   ref.ieon,   () -> "ieon mismatch at edge " + edge);
-        assertEquals(orig.io,     ref.io,     () -> "io mismatch at edge " + edge);
-        assertEquals(orig.tao,    ref.tao,    () -> "tao mismatch at edge " + edge);
-        assertEquals(orig.tbo,    ref.tbo,    () -> "tbo mismatch at edge " + edge);
-        assertEquals(orig.tco,    ref.tco,    () -> "tco mismatch at edge " + edge);
-        assertEquals(orig.tdo,    ref.tdo,    () -> "tdo mismatch at edge " + edge);
+        assertEquals(orig.getOd(),     ref.getOd(),     () -> "od mismatch at edge " + edge);
+        assertEquals(orig.isDtackn(),  ref.isDtackn(),  () -> "dtackn mismatch at edge " + edge);
+        assertEquals(orig.isIrqn(),    ref.isIrqn(),    () -> "irqn mismatch at edge " + edge);
+        assertEquals(orig.isIeon(),    ref.isIeon(),    () -> "ieon mismatch at edge " + edge);
+        assertEquals(orig.getIo(),     ref.getIo(),     () -> "io mismatch at edge " + edge);
+        assertEquals(orig.isTao(),     ref.isTao(),     () -> "tao mismatch at edge " + edge);
+        assertEquals(orig.isTbo(),     ref.isTbo(),     () -> "tbo mismatch at edge " + edge);
+        assertEquals(orig.isTco(),     ref.isTco(),     () -> "tco mismatch at edge " + edge);
+        assertEquals(orig.isTdo(),     ref.isTdo(),     () -> "tdo mismatch at edge " + edge);
     }
 }

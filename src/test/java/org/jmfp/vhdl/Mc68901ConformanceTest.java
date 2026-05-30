@@ -75,15 +75,15 @@ class Mc68901ConformanceTest {
                                id[0], rs[0], csn[0], rwn[0], dsn[0],
                                iackn[0], ii[0], tai[0], tbi[0]);
             }
-            @Override public int     getOd()      { return mfp.od; }
-            @Override public boolean isDtackn()   { return mfp.dtackn; }
-            @Override public boolean isIrqn()     { return mfp.irqn; }
-            @Override public boolean isIeon()     { return mfp.ieon; }
-            @Override public int     getIo()      { return mfp.io; }
-            @Override public boolean isTao()      { return mfp.tao; }
-            @Override public boolean isTbo()      { return mfp.tbo; }
-            @Override public boolean isTco()      { return mfp.tco; }
-            @Override public boolean isTdo()      { return mfp.tdo; }
+            @Override public int     getOd()      { return mfp.getOd(); }
+            @Override public boolean isDtackn()   { return mfp.isDtackn(); }
+            @Override public boolean isIrqn()     { return mfp.isIrqn(); }
+            @Override public boolean isIeon()     { return mfp.isIeon(); }
+            @Override public int     getIo()      { return mfp.getIo(); }
+            @Override public boolean isTao()      { return mfp.isTao(); }
+            @Override public boolean isTbo()      { return mfp.isTbo(); }
+            @Override public boolean isTco()      { return mfp.isTco(); }
+            @Override public boolean isTdo()      { return mfp.isTdo(); }
         };
 
         VcdConformanceRunner runner = new VcdConformanceRunner();

@@ -186,15 +186,15 @@ class Mc68901OptimizedTest {
     // ================================================================
 
     private static void assertOutputsMatch(Mc68901 orig, Mc68901Optimized opt, int edge) {
-        assertEquals(orig.od,     opt.od,     () -> "od mismatch at edge " + edge);
-        assertEquals(orig.dtackn, opt.dtackn, () -> "dtackn mismatch at edge " + edge);
-        assertEquals(orig.irqn,   opt.irqn,   () -> "irqn mismatch at edge " + edge);
-        assertEquals(orig.ieon,   opt.ieon,   () -> "ieon mismatch at edge " + edge);
-        assertEquals(orig.io,     opt.io,     () -> "io mismatch at edge " + edge);
-        assertEquals(orig.tao,    opt.tao,    () -> "tao mismatch at edge " + edge);
-        assertEquals(orig.tbo,    opt.tbo,    () -> "tbo mismatch at edge " + edge);
-        assertEquals(orig.tco,    opt.tco,    () -> "tco mismatch at edge " + edge);
-        assertEquals(orig.tdo,    opt.tdo,    () -> "tdo mismatch at edge " + edge);
+        assertEquals(orig.getOd(),     opt.getOd(),     () -> "od mismatch at edge " + edge);
+        assertEquals(orig.isDtackn(),  opt.isDtackn(),  () -> "dtackn mismatch at edge " + edge);
+        assertEquals(orig.isIrqn(),    opt.isIrqn(),    () -> "irqn mismatch at edge " + edge);
+        assertEquals(orig.isIeon(),    opt.isIeon(),    () -> "ieon mismatch at edge " + edge);
+        assertEquals(orig.getIo(),     opt.getIo(),     () -> "io mismatch at edge " + edge);
+        assertEquals(orig.isTao(),     opt.isTao(),     () -> "tao mismatch at edge " + edge);
+        assertEquals(orig.isTbo(),     opt.isTbo(),     () -> "tbo mismatch at edge " + edge);
+        assertEquals(orig.isTco(),     opt.isTco(),     () -> "tco mismatch at edge " + edge);
+        assertEquals(orig.isTdo(),     opt.isTdo(),     () -> "tdo mismatch at edge " + edge);
     }
 
     private static void driveEdges(Mc68901 orig, Mc68901Optimized opt, int count, int seed) {

@@ -18,15 +18,15 @@ package org.jmfp.vhdl.optimized;
 public final class Mc68901Optimized {
 
     // ---- Chip outputs ----
-    public int     od;
-    public boolean dtackn;
-    public boolean irqn;
-    public boolean ieon;
-    public int     io;
-    public boolean tao;
-    public boolean tbo;
-    public boolean tco;
-    public boolean tdo;
+    private int     od;
+    private boolean dtackn;
+    private boolean irqn;
+    private boolean ieon;
+    private int     io;
+    private boolean tao;
+    private boolean tbo;
+    private boolean tco;
+    private boolean tdo;
 
     // ---- Factored-out components ----
     private final OptimizedTimerUnit timerA = new OptimizedTimerUnit();
@@ -243,6 +243,16 @@ public final class Mc68901Optimized {
     // ================================================================
     //  Getters
     // ================================================================
+
+    public int     getOd()      { return od; }
+    public boolean isDtackn()   { return dtackn; }
+    public boolean isIrqn()     { return irqn; }
+    public boolean isIeon()     { return ieon; }
+    public int     getIo()      { return io; }
+    public boolean isTao()      { return tao; }
+    public boolean isTbo()      { return tbo; }
+    public boolean isTco()      { return tco; }
+    public boolean isTdo()      { return tdo; }
 
     public int getGpip()  { return regs.gpip; }
     public int getAer()   { return regs.aer; }
