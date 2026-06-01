@@ -131,13 +131,19 @@ public final class Mc68901RefactoredSwingDemo {
                                 int timerCControl, int timerDControl,
                                 int timerAData, int timerBData,
                                 int timerCData, int timerDData) {
-        model.writeRegister(REG_TACR, timerAControl);
-        model.writeRegister(REG_TBCR, timerBControl);
-        model.writeRegister(REG_TCDCR, packTcdcrWriteValue(timerCControl, timerDControl));
+        // Stop timers so data-register writes reload main counters.
+        model.writeRegister(REG_TACR, 0);
+        model.writeRegister(REG_TBCR, 0);
+        model.writeRegister(REG_TCDCR, 0);
+
         model.writeRegister(REG_TADR, timerAData);
         model.writeRegister(REG_TBDR, timerBData);
         model.writeRegister(REG_TCDR, timerCData);
         model.writeRegister(REG_TDDR, timerDData);
+
+        model.writeRegister(REG_TACR, timerAControl);
+        model.writeRegister(REG_TBCR, timerBControl);
+        model.writeRegister(REG_TCDCR, packTcdcrWriteValue(timerCControl, timerDControl));
     }
 
     private void applyConfigurationFromUi() {
