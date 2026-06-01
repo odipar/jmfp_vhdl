@@ -53,6 +53,15 @@ mvn test
 The test suite requires Java 17+ and Maven 3.x.  
 The VCD zip file must be present at `vhdl/simulations/tb_feat_mc68901.vcd.zip` relative to the project root (this is the default Maven working directory during tests).
 
+## Swing Timer Demo
+
+A Swing demo is available to configure all four MFP timers (A/B/C/D) and run timer ticks while observing counters, prescalers, outputs, and interrupt flags in real time:
+
+```bash
+mvn -DskipTests compile
+java -cp target/classes org.jmfp.vhdl.refactored.Mc68901RefactoredSwingDemo
+```
+
 ## Attribution
 
 The VHDL source file [`vhdl/mc68901.vhd`](vhdl/mc68901.vhd) was written by **Francois Galea** and is used with permission under the terms of the GNU General Public License.
