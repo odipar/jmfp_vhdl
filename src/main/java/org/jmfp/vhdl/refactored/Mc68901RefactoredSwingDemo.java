@@ -122,7 +122,8 @@ public final class Mc68901RefactoredSwingDemo {
     }
 
     static int packTcdcrWriteValue(int timerCControl, int timerDControl) {
-        return ((timerCControl & 0x7) << 4) | (timerDControl & 0x7);
+        int cHighNibble = ((timerCControl & 0x7) << 4) & 0x70;
+        return cHighNibble | (timerDControl & 0x7);
     }
 
     static void configureTimers(Mc68901Refactored model,
