@@ -1,6 +1,5 @@
 package org.jmfp.vhdl.swing;
 
-import org.jmfp.vhdl.optimized.OptimizedTimerUnit;
 import org.jmfp.vhdl.refactored.Mc68901Refactored;
 
 import javax.swing.*;
@@ -50,10 +49,10 @@ public final class MfpTimerApp extends JFrame {
         super("MC68901 MFP Timer Simulator – Atari ST Crystal (2.4576 MHz)");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        timerPanelA = new TimerPanel("Timer A", true);
-        timerPanelB = new TimerPanel("Timer B", true);
-        timerPanelC = new TimerPanel("Timer C", false);
-        timerPanelD = new TimerPanel("Timer D", false);
+        timerPanelA = new TimerPanel("Timer A");
+        timerPanelB = new TimerPanel("Timer B");
+        timerPanelC = new TimerPanel("Timer C");
+        timerPanelD = new TimerPanel("Timer D");
 
         JPanel timersPanel = new JPanel(new GridLayout(2, 2, 8, 8));
         timersPanel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
@@ -218,7 +217,7 @@ public final class MfpTimerApp extends JFrame {
         private final JLabel tickLabel;
         private final JLabel counterLabel;
 
-        TimerPanel(String name, boolean hasEventCount) {
+        TimerPanel(String name) {
             setBorder(BorderFactory.createTitledBorder(
                     BorderFactory.createEtchedBorder(), name,
                     TitledBorder.LEFT, TitledBorder.TOP));
