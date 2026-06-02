@@ -8,11 +8,20 @@ import java.awt.*;
 
 /**
  * Swing application that runs the refactored MC68901 MFP chip and displays
- * real-time timer tick counters.
+ * real-time timer tick counters, interrupt status, and GPIP state.
  *
- * <p>The chip is clocked at the Atari ST crystal frequency of 2.4576 MHz.
- * Each timer can be configured with a prescaler (divider) and a count value.
- * The effective timer frequency is: crystal / (2 * prescaler * count).
+ * <p>The chip is clocked at the Atari ST crystal frequency of 2.4576 MHz using
+ * the low-level {@link Mc68901Refactored#risingEdge} API with both {@code clkren}
+ * and {@code xtlcken} asserted. Because the crystal-clock domain includes a
+ * divide-by-2 flip-flop, timers advance on every other rising edge, giving an
+ * effective timer-input frequency of crystal / 2 = 1.2288 MHz.
+ *
+ * <p>The effective timer output frequency is therefore:
+ * crystal / (2 &times; prescaler &times; count).
+ *
+ * <p>In addition to the four timer channels the application shows the MFP's
+ * interrupt subsystem (IERA/IERB, IPRA/IPRB, IRQ output) and the eight
+ * general-purpose I/O pins (GPIP).
  */
 public final class MfpTimerApp extends JFrame {
 
@@ -35,24 +44,36 @@ public final class MfpTimerApp extends JFrame {
     private final TimerPanel timerPanelC;
     private final TimerPanel timerPanelD;
 
-    // Tick counters (number of timer timeouts)
+    // UI components for interrupts and GPIP
+    private final InterruptPanel interruptPanel;
+    private final GpipPanel      gpipPanel;
+
+    // Tick counters (number of timer output transitions / 2 = timeouts)
     private volatile long tickCountA;
     private volatile long tickCountB;
     private volatile long tickCountC;
     private volatile long tickCountD;
+
+    // Interrupt-status snapshot updated by the simulation thread
+    private volatile boolean irqActive;
+    private volatile int     iprASnapshot;
+    private volatile int     iprBSnapshot;
+    private volatile int     gpipSnapshot;
 
     // Simulation state
     private volatile boolean running = true;
     private Thread simulationThread;
 
     public MfpTimerApp() {
-        super("MC68901 MFP Timer Simulator – Atari ST Crystal (2.4576 MHz)");
+        super("MC68901 MFP Simulator – Atari ST Crystal (2.4576 MHz)");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        timerPanelA = new TimerPanel("Timer A");
-        timerPanelB = new TimerPanel("Timer B");
-        timerPanelC = new TimerPanel("Timer C");
-        timerPanelD = new TimerPanel("Timer D");
+        timerPanelA    = new TimerPanel("Timer A");
+        timerPanelB    = new TimerPanel("Timer B");
+        timerPanelC    = new TimerPanel("Timer C");
+        timerPanelD    = new TimerPanel("Timer D");
+        interruptPanel = new InterruptPanel();
+        gpipPanel      = new GpipPanel();
 
         JPanel timersPanel = new JPanel(new GridLayout(2, 2, 8, 8));
         timersPanel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
@@ -61,19 +82,31 @@ public final class MfpTimerApp extends JFrame {
         timersPanel.add(timerPanelC);
         timersPanel.add(timerPanelD);
 
+        JPanel bottomRow = new JPanel(new GridLayout(1, 2, 8, 0));
+        bottomRow.setBorder(BorderFactory.createEmptyBorder(0, 8, 8, 8));
+        bottomRow.add(interruptPanel);
+        bottomRow.add(gpipPanel);
+
         JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         JButton applyBtn = new JButton("Apply Settings");
         applyBtn.addActionListener(e -> applySettings());
         JButton resetBtn = new JButton("Reset Counters");
         resetBtn.addActionListener(e -> resetCounters());
+        JButton clearIprBtn = new JButton("Clear Interrupts");
+        clearIprBtn.addActionListener(e -> clearInterrupts());
         controlPanel.add(applyBtn);
         controlPanel.add(resetBtn);
+        controlPanel.add(clearIprBtn);
 
-        setLayout(new BorderLayout());
+        JPanel southWrap = new JPanel(new BorderLayout());
+        southWrap.add(bottomRow,    BorderLayout.CENTER);
+        southWrap.add(controlPanel, BorderLayout.SOUTH);
+
+        setLayout(new BorderLayout(0, 4));
         add(timersPanel, BorderLayout.CENTER);
-        add(controlPanel, BorderLayout.SOUTH);
+        add(southWrap,   BorderLayout.SOUTH);
 
-        // Set default values: Timer C = 192 (200Hz), Timer D = 1 (9600 baud ref)
+        // Default timer configuration
         timerPanelA.setCount(246);
         timerPanelA.setPrescaler(7);  // /200
         timerPanelB.setCount(246);
@@ -88,7 +121,7 @@ public final class MfpTimerApp extends JFrame {
         startUIRefresh();
 
         pack();
-        setMinimumSize(new Dimension(700, 400));
+        setMinimumSize(new Dimension(820, 520));
         setLocationRelativeTo(null);
     }
 
@@ -120,6 +153,14 @@ public final class MfpTimerApp extends JFrame {
             mfp.writeRegister(0x23, countC & 0xFF);
             // Timer D data register (0x25)
             mfp.writeRegister(0x25, countD & 0xFF);
+
+            // Interrupt enable: IERA bit5=Timer-A-timeout, bit0=Timer-B-timeout
+            mfp.writeRegister(0x07, 0x21);  // IERA
+            // Interrupt enable: IERB bit5=Timer-C-timeout, bit4=Timer-D-timeout
+            mfp.writeRegister(0x09, 0x30);  // IERB
+            // Interrupt mask: same bits as IER so all enabled channels reach /IRQ
+            mfp.writeRegister(0x13, 0x21);  // IMRA
+            mfp.writeRegister(0x15, 0x30);  // IMRB
         }
 
         // Update frequency labels
@@ -136,11 +177,24 @@ public final class MfpTimerApp extends JFrame {
         tickCountD = 0;
     }
 
+    private void clearInterrupts() {
+        synchronized (mfp) {
+            // Writing 0x00 to IPRA/IPRB clears all pending interrupt bits
+            mfp.writeRegister(0x0B, 0x00);  // IPRA
+            mfp.writeRegister(0x0D, 0x00);  // IPRB
+        }
+    }
+
     private void startSimulation() {
         simulationThread = new Thread(() -> {
-            // Simulate at effective speed using batched ticks
-            // Real clock: 2.4576 MHz = ~407ns per tick
-            // We batch ticks and sleep periodically to avoid consuming 100% CPU
+            // Clock the chip via risingEdge with both clkren and xtlcken asserted.
+            // The xtlcken domain contains a divide-by-2 flip-flop (xtldiv), so
+            // advanceTimers() fires on every other risingEdge call, giving a timer
+            // input rate of XTAL / 2 = 1.2288 MHz – consistent with the frequency
+            // formula: crystal / (2 * prescaler * count).
+            //
+            // Chip-select (csn) and interrupt-acknowledge (iackn) are de-asserted
+            // (active-low, so held high) to avoid unintended bus cycles.
             final int BATCH_SIZE = 4096;
             final long SLEEP_NS = (long) (BATCH_SIZE / XTAL_FREQUENCY_HZ * 1_000_000_000.0);
 
@@ -154,7 +208,10 @@ public final class MfpTimerApp extends JFrame {
                     boolean prevTdo = mfp.timerD().getOutput();
 
                     for (int i = 0; i < BATCH_SIZE; i++) {
-                        mfp.clockTimers(false, false);
+                        // clkren=true, xtlcken=true, resetn=true, id=0, rs=0,
+                        // csn=true (inactive), rwn=true, dsn=true (inactive),
+                        // iackn=true (inactive), ii=0, tai=false, tbi=false
+                        mfp.risingEdge(true, true, true, 0, 0, true, true, true, true, 0, false, false);
 
                         boolean curTao = mfp.timerA().getOutput();
                         boolean curTbo = mfp.timerB().getOutput();
@@ -171,6 +228,12 @@ public final class MfpTimerApp extends JFrame {
                         prevTco = curTco;
                         prevTdo = curTdo;
                     }
+
+                    // Snapshot interrupt and GPIP state for the UI thread
+                    irqActive    = !mfp.isIrqn();   // irqn is active-low
+                    iprASnapshot = mfp.getIpra();
+                    iprBSnapshot = mfp.getIprb();
+                    gpipSnapshot = mfp.getIo();
                 }
 
                 long elapsed = System.nanoTime() - startNs;
@@ -202,6 +265,9 @@ public final class MfpTimerApp extends JFrame {
                 timerPanelC.setMainCounter(mfp.timerC().getMainCounter());
                 timerPanelD.setMainCounter(mfp.timerD().getMainCounter());
             }
+
+            interruptPanel.update(irqActive, iprASnapshot, iprBSnapshot);
+            gpipPanel.update(gpipSnapshot);
         });
         uiTimer.start();
     }
@@ -301,6 +367,159 @@ public final class MfpTimerApp extends JFrame {
                 freqLabel.setText(String.format("%.2f kHz", freq / 1000.0));
             } else {
                 freqLabel.setText(String.format("%.2f Hz", freq));
+            }
+        }
+    }
+
+    // ================================================================
+    //  Interrupt status panel
+    // ================================================================
+
+    /**
+     * Displays the MFP interrupt controller state: IRQ output pin, the two
+     * interrupt-pending registers (IPRA / IPRB), and which timer channels
+     * currently have a pending interrupt.
+     *
+     * <p>IERA / IERB are configured in {@link MfpTimerApp#applySettings()} to
+     * enable timeouts for all four timer channels. IMRA / IMRB are set to the
+     * same mask so enabled interrupts are visible on the /IRQ output.
+     */
+    private static final class InterruptPanel extends JPanel {
+
+        /** Bit positions in IPRA for each timer timeout channel. */
+        private static final int IPRA_BIT_TIMER_A = 5;
+        private static final int IPRA_BIT_TIMER_B = 0;
+
+        /** Bit positions in IPRB for each timer timeout channel. */
+        private static final int IPRB_BIT_TIMER_C = 5;
+        private static final int IPRB_BIT_TIMER_D = 4;
+
+        private final JLabel irqLabel;
+        private final JLabel iprALabel;
+        private final JLabel iprBLabel;
+        private final JLabel[] timerPendingLabels = new JLabel[4];
+
+        InterruptPanel() {
+            setBorder(BorderFactory.createTitledBorder(
+                    BorderFactory.createEtchedBorder(), "Interrupt Status",
+                    TitledBorder.LEFT, TitledBorder.TOP));
+            setLayout(new GridBagLayout());
+            GridBagConstraints gbc = new GridBagConstraints();
+            gbc.insets = new Insets(3, 5, 3, 5);
+            gbc.anchor = GridBagConstraints.WEST;
+
+            // IRQ output row
+            gbc.gridx = 0; gbc.gridy = 0;
+            add(new JLabel("/IRQ:"), gbc);
+            gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
+            irqLabel = new JLabel("inactive");
+            irqLabel.setFont(irqLabel.getFont().deriveFont(Font.BOLD));
+            add(irqLabel, gbc);
+
+            // IPRA row
+            gbc.gridx = 0; gbc.gridy = 1; gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0;
+            add(new JLabel("IPRA:"), gbc);
+            gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
+            iprALabel = new JLabel("0x00");
+            iprALabel.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+            add(iprALabel, gbc);
+
+            // IPRB row
+            gbc.gridx = 0; gbc.gridy = 2; gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0;
+            add(new JLabel("IPRB:"), gbc);
+            gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
+            iprBLabel = new JLabel("0x00");
+            iprBLabel.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+            add(iprBLabel, gbc);
+
+            // Per-timer pending rows
+            String[] timerNames = {"Timer A", "Timer B", "Timer C", "Timer D"};
+            for (int t = 0; t < 4; t++) {
+                gbc.gridx = 0; gbc.gridy = 3 + t;
+                gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0;
+                add(new JLabel(timerNames[t] + ":"), gbc);
+                gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
+                timerPendingLabels[t] = new JLabel("—");
+                add(timerPendingLabels[t], gbc);
+            }
+        }
+
+        void update(boolean irqActive, int ipra, int iprb) {
+            if (irqActive) {
+                irqLabel.setText("ACTIVE");
+                irqLabel.setForeground(Color.RED);
+            } else {
+                irqLabel.setText("inactive");
+                irqLabel.setForeground(UIManager.getColor("Label.foreground"));
+            }
+            iprALabel.setText(String.format("0x%02X  (b%s)", ipra, toBinary8(ipra)));
+            iprBLabel.setText(String.format("0x%02X  (b%s)", iprb, toBinary8(iprb)));
+
+            updateTimerPending(0, (ipra >> IPRA_BIT_TIMER_A) & 1);
+            updateTimerPending(1, (ipra >> IPRA_BIT_TIMER_B) & 1);
+            updateTimerPending(2, (iprb >> IPRB_BIT_TIMER_C) & 1);
+            updateTimerPending(3, (iprb >> IPRB_BIT_TIMER_D) & 1);
+        }
+
+        private void updateTimerPending(int index, int pending) {
+            if (pending != 0) {
+                timerPendingLabels[index].setText("PENDING");
+                timerPendingLabels[index].setForeground(Color.RED);
+            } else {
+                timerPendingLabels[index].setText("clear");
+                timerPendingLabels[index].setForeground(UIManager.getColor("Label.foreground"));
+            }
+        }
+
+        private static String toBinary8(int value) {
+            return String.format("%8s", Integer.toBinaryString(value & 0xFF)).replace(' ', '0');
+        }
+    }
+
+    // ================================================================
+    //  GPIP (General Purpose I/O Port) display panel
+    // ================================================================
+
+    /**
+     * Displays the eight general-purpose I/O pins of the MFP (the IO output,
+     * which reflects the GPIP register merged with the DDR-controlled pins).
+     * Each pin is shown as a named bit indicator.
+     */
+    private static final class GpipPanel extends JPanel {
+
+        private static final String[] PIN_NAMES = {
+            "I0 (GP)", "I1 (GP)", "I2 (GP)", "I3 (GP/TBi)",
+            "I4 (GP/TAi)", "I5 (GP)", "I6 (GP)", "I7 (GP)"
+        };
+
+        private final JLabel[] pinLabels = new JLabel[8];
+
+        GpipPanel() {
+            setBorder(BorderFactory.createTitledBorder(
+                    BorderFactory.createEtchedBorder(), "GPIP / I/O Pins",
+                    TitledBorder.LEFT, TitledBorder.TOP));
+            setLayout(new GridBagLayout());
+            GridBagConstraints gbc = new GridBagConstraints();
+            gbc.insets = new Insets(2, 5, 2, 5);
+            gbc.anchor = GridBagConstraints.WEST;
+
+            for (int i = 0; i < 8; i++) {
+                gbc.gridx = 0; gbc.gridy = i;
+                gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0;
+                add(new JLabel(PIN_NAMES[i] + ":"), gbc);
+                gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
+                pinLabels[i] = new JLabel("0");
+                pinLabels[i].setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+                add(pinLabels[i], gbc);
+            }
+        }
+
+        void update(int io) {
+            for (int i = 0; i < 8; i++) {
+                int bit = (io >> i) & 1;
+                pinLabels[i].setText(bit != 0 ? "1  (HIGH)" : "0  (low)");
+                pinLabels[i].setForeground(
+                        bit != 0 ? new Color(0, 128, 0) : UIManager.getColor("Label.foreground"));
             }
         }
     }
