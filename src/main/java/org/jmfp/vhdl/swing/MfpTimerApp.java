@@ -12,12 +12,10 @@ import java.awt.*;
  *
  * <p>The chip is clocked at the Atari ST crystal frequency of 2.4576 MHz using
  * the low-level {@link Mc68901Refactored#risingEdge} API with both {@code clkren}
- * and {@code xtlcken} asserted. Because the crystal-clock domain includes a
- * divide-by-2 flip-flop, timers advance on every other rising edge, giving an
- * effective timer-input frequency of crystal / 2 = 1.2288 MHz.
+ * and {@code xtlcken} asserted.
  *
- * <p>The effective timer output frequency is therefore:
- * crystal / (2 &times; prescaler &times; count).
+ * <p>The timer output frequency is:
+ * crystal / (prescaler &times; count).
  *
  * <p>In addition to the four timer channels the application shows the MFP's
  * interrupt subsystem (IERA/IERB, IPRA/IPRB, IRQ output) and the eight
@@ -29,11 +27,11 @@ public final class MfpTimerApp extends JFrame {
     private static final double XTAL_FREQUENCY_HZ = 2_457_600.0;
 
     /** Prescaler values indexed by the 3-bit control field. */
-    private static final int[] PRESCALE_VALUES = {0, 4, 10, 16, 50, 64, 100, 200};
+    private static final int[] PRESCALE_VALUES = {0, 2, 5, 8, 25, 32, 50, 100};
 
     /** Labels for prescaler dropdown. */
     private static final String[] PRESCALE_LABELS = {
-        "Stopped", "/4", "/10", "/16", "/50", "/64", "/100", "/200"
+        "Stopped", "/2", "/5", "/8", "/25", "/32", "/50", "/100"
     };
 
     private final Mc68901Refactored mfp = new Mc68901Refactored();
@@ -47,12 +45,17 @@ public final class MfpTimerApp extends JFrame {
     // UI components for interrupts and GPIP
     private final InterruptPanel interruptPanel;
     private final GpipPanel      gpipPanel;
+    private final JLabel         elapsedTimeLabel;
 
     // Tick counters (number of timer output transitions / 2 = timeouts)
     private volatile long tickCountA;
     private volatile long tickCountB;
     private volatile long tickCountC;
     private volatile long tickCountD;
+    
+    // Simulation time tracking
+    private volatile long totalCrystalTicks;
+    private volatile long startTimeNanos;
 
     // Interrupt-status snapshot updated by the simulation thread
     private volatile boolean irqActive;
@@ -94,9 +97,15 @@ public final class MfpTimerApp extends JFrame {
         resetBtn.addActionListener(e -> resetCounters());
         JButton clearIprBtn = new JButton("Clear Interrupts");
         clearIprBtn.addActionListener(e -> clearInterrupts());
+        
+        elapsedTimeLabel = new JLabel("Elapsed: 0.000 s");
+        elapsedTimeLabel.setFont(new Font(Font.MONOSPACED, Font.BOLD, 12));
+        
         controlPanel.add(applyBtn);
         controlPanel.add(resetBtn);
         controlPanel.add(clearIprBtn);
+        controlPanel.add(Box.createHorizontalStrut(20));  // spacer
+        controlPanel.add(elapsedTimeLabel);
 
         JPanel southWrap = new JPanel(new BorderLayout());
         southWrap.add(bottomRow,    BorderLayout.CENTER);
@@ -175,6 +184,8 @@ public final class MfpTimerApp extends JFrame {
         tickCountB = 0;
         tickCountC = 0;
         tickCountD = 0;
+        totalCrystalTicks = 0;
+        startTimeNanos = System.nanoTime();
     }
 
     private void clearInterrupts() {
@@ -186,12 +197,11 @@ public final class MfpTimerApp extends JFrame {
     }
 
     private void startSimulation() {
+        startTimeNanos = System.nanoTime();
+        totalCrystalTicks = 0;
+        
         simulationThread = new Thread(() -> {
             // Clock the chip via risingEdge with both clkren and xtlcken asserted.
-            // The xtlcken domain contains a divide-by-2 flip-flop (xtldiv), so
-            // advanceTimers() fires on every other risingEdge call, giving a timer
-            // input rate of XTAL / 2 = 1.2288 MHz – consistent with the frequency
-            // formula: crystal / (2 * prescaler * count).
             //
             // Chip-select (csn) and interrupt-acknowledge (iackn) are de-asserted
             // (active-low, so held high) to avoid unintended bus cycles.
@@ -212,6 +222,7 @@ public final class MfpTimerApp extends JFrame {
                         // csn=true (inactive), rwn=true, dsn=true (inactive),
                         // iackn=true (inactive), ii=0, tai=false, tbi=false
                         mfp.risingEdge(true, true, true, 0, 0, true, true, true, true, 0, false, false);
+                        totalCrystalTicks++;
 
                         boolean curTao = mfp.timerA().getOutput();
                         boolean curTbo = mfp.timerB().getOutput();
@@ -265,6 +276,10 @@ public final class MfpTimerApp extends JFrame {
                 timerPanelC.setMainCounter(mfp.timerC().getMainCounter());
                 timerPanelD.setMainCounter(mfp.timerD().getMainCounter());
             }
+            
+            // Update elapsed time display
+            double elapsedSeconds = totalCrystalTicks / XTAL_FREQUENCY_HZ;
+            elapsedTimeLabel.setText(String.format("Elapsed: %.3f s", elapsedSeconds));
 
             interruptPanel.update(irqActive, iprASnapshot, iprBSnapshot);
             gpipPanel.update(gpipSnapshot);
@@ -362,7 +377,7 @@ public final class MfpTimerApp extends JFrame {
                 return;
             }
             int prescale = PRESCALE_VALUES[prescalerIndex];
-            double freq = XTAL_FREQUENCY_HZ / (2.0 * prescale * count);
+            double freq = XTAL_FREQUENCY_HZ / (prescale * count);
             if (freq >= 1000) {
                 freqLabel.setText(String.format("%.2f kHz", freq / 1000.0));
             } else {
