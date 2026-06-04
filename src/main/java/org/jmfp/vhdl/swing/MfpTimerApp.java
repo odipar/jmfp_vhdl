@@ -27,11 +27,11 @@ public final class MfpTimerApp extends JFrame {
     private static final double XTAL_FREQUENCY_HZ = 2_457_600.0;
 
     /** Prescaler values indexed by the 3-bit control field. */
-    private static final int[] PRESCALE_VALUES = {0, 2, 5, 8, 25, 32, 50, 100};
+    private static final int[] PRESCALE_VALUES = {0, 4, 10, 16, 100, 64, 100, 200};
 
     /** Labels for prescaler dropdown. */
     private static final String[] PRESCALE_LABELS = {
-        "Stopped", "/2", "/5", "/8", "/25", "/32", "/50", "/100"
+        "Stopped", "/4", "/10", "/16", "/50", "/64", "/100", "/200"
     };
 
     private final Mc68901Refactored mfp = new Mc68901Refactored();
