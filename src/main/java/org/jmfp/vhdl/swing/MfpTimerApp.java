@@ -104,7 +104,7 @@ public final class MfpTimerApp extends JFrame {
         controlPanel.add(applyBtn);
         controlPanel.add(resetBtn);
         controlPanel.add(clearIprBtn);
-        controlPanel.add(new JLabel("    "));  // spacer
+        controlPanel.add(Box.createHorizontalStrut(20));  // spacer
         controlPanel.add(elapsedTimeLabel);
 
         JPanel southWrap = new JPanel(new BorderLayout());
