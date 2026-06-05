@@ -6,7 +6,7 @@
 
     <groupId>org.jmfp.vhdl</groupId>
     <artifactId>jmfp_vhdl</artifactId>
-    <version>0.1-SNAPSHOT</version>
+    <version>0.2-SNAPSHOT</version>
 
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
